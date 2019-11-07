@@ -3,6 +3,7 @@ import json
 import re
 import csv
 from collections import Counter
+import os
 
 #Read list of pfams
 def read_pfam(filename):
@@ -156,10 +157,8 @@ def analyses(taxonID, ECs, pfam_ECs):
     #print("TEST:", pfam_EC_counter[0])
 
     #Write a csv file with results
-    with open("JGI_results.csv", "w") as csvfile:
-        fieldnames = ["TaxonID", "ec1", "pfam_ec1", "ec2", "pfam_ec2", "ec3", "pfam_ec3", "ec4", "pfam_ec4", "ec5", "pfam_ec5", "ec6", "pfam_ec6"]
+    with open("JGI_results.csv", "a") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(fieldnames)
         writer.writerow([taxonID, EC_counter[0][1], pfam_EC_counter[0][1], EC_counter[1][1], pfam_EC_counter[1][1], EC_counter[2][1], pfam_EC_counter[2][1], EC_counter[3][1], pfam_EC_counter[3][1], EC_counter[4][1], pfam_EC_counter[4][1], EC_counter[5][1], pfam_EC_counter[5][1]])
 
 def main():
@@ -172,13 +171,18 @@ def main():
 
     #Dictionary of pfams - linking pfames to EC numbers
     pfam_EC_dict = link_ECs_to_pfams(EC_names, pfam_df)
-    #print(pfam_df.head())
+
+    with open("JGI_results.csv", "w") as csvfile:
+        fieldnames = ["TaxonID", "ec1", "pfam_ec1", "ec2", "pfam_ec2", "ec3", "pfam_ec3", "ec4", "pfam_ec4", "ec5", "pfam_ec5", "ec6", "pfam_ec6"]
+        writer = csv.writer(csvfile)
 
     #Actual question - get the distribution of enzymes
-    ECs, pfam_ECs = EC_pfam_dist("2001200003", pfam_EC_dict)
+    for filename in os.listdir("ec_dicts"):
+        taxonID = re.sub("[^0-9]", "", filename)
+        ECs, pfam_ECs = EC_pfam_dist(taxonID, pfam_EC_dict)
 
-    #Statsitics over distributions
-    analyses("2001200003", ECs, pfam_ECs)
+        #Statsitics over distributions
+        analyses(taxonID, ECs, pfam_ECs)
 
 
 main()
