@@ -1,6 +1,8 @@
 import pandas as pd
 import json
 import re
+import csv
+from collections import Counter
 
 #Read list of pfams
 def read_pfam(filename):
@@ -81,32 +83,32 @@ def analyze_ECs(EC_names):
     return EC_names
 
 def link_ECs_to_pfams(EC_names, pfam_df):
+    pfam_EC_dict = {}
     for index, row in pfam_df.iterrows():
         #print(index)
         #print(row["Pfam Name"])
         for word in row["Pfam Name"].split():
             if word in EC_names[0]:
-                pfam_df.at[index, "EC Class"] = 1
+                pfam_EC_dict[row["Pfam ID"]] = 1
                 #row["EC Class"] = 1
                 #print(row)
             elif word in EC_names[1]:
-                pfam_df.at[index, "EC Class"] = 2
+                pfam_EC_dict[row["Pfam ID"]] = 2
             elif word in EC_names[2]:
-                pfam_df.at[index, "EC Class"] = 3
+                pfam_EC_dict[row["Pfam ID"]] = 3
             elif word in EC_names[3]:
-                pfam_df.at[index, "EC Class"] = 4
+                pfam_EC_dict[row["Pfam ID"]] = 4
             elif word in EC_names[4]:
-                pfam_df.at[index, "EC Class"] = 5
+                pfam_EC_dict[row["Pfam ID"]] = 5
             elif word in EC_names[5]:
-                pfam_df.at[index, "EC Class"] = 6
+                pfam_EC_dict[row["Pfam ID"]] = 6
             elif word in EC_names[6]:
-                pfam_df.at[index, "EC Class"] = 7
-            else:
-                pfam_df.at[index, "EC Class"] = 0
+                pfam_EC_dict[row["Pfam ID"]] = 7
 
-    return pfam_df
+    #print(pfam_EC_dict)
+    return pfam_EC_dict
 
-def EC_pfam_dist(taxonID, pfam_df):
+def EC_pfam_dist(taxonID, pfam_EC_dict):
     ECs = []
     pfam_ECs = []
     #EC distribution
@@ -117,13 +119,48 @@ def EC_pfam_dist(taxonID, pfam_df):
         print("EC Distribution:", ECs)
 
     #pfam EC distribution
-    with open("pfam_dicts/" + taxonID + "_pfamdict.json", "r") as f:
-        json_f = json.load(f)
-        for pfam in json_f["pfams"]:
-            pfam_ECs.append(int(pfam_df.loc[pfam_df["Pfam Name"] == pfam]["EC Class"]))
-        print("Pfam EC Distribution:", pfam_ECs)
+    with open("pfams/" + taxonID + "_pfams.csv", "r") as f:
+        csv_reader = csv.DictReader(f, delimiter="\t")
+        pfam_len = 0
+        ase_count = 0
+        #print(csv_reader)
+        for row in csv_reader:
+            pfam_len += 1
+            try:
+                pfam_ECs.append(pfam_EC_dict[row["Pfam ID"]])
+            except:
+                pass
+            #find the number of "ase"'s within the pfame dataset
+            if "ase" in row["Pfam Name"]:
+                ase_count += 1
 
+        print("Pfam EC distribution:", pfam_ECs)
 
+    print("\nTotal number of pfams within " + taxonID + " =", pfam_len)
+    print("\"Ase\" Count =", ase_count)
+    return ECs, pfam_ECs
+
+def analyses(taxonID, ECs, pfam_ECs):
+    #Size of both
+    print("EC Size:", len(ECs))
+    print("pfam EC Size:", len(pfam_ECs))
+    print()
+
+    #Goal - counter over both
+    EC_counter = Counter(ECs)
+    EC_counter = sorted(EC_counter.items())
+    print("EC counter:", EC_counter)
+    pfam_EC_counter = Counter(pfam_ECs)
+    pfam_EC_counter = sorted(pfam_EC_counter.items())
+    print("pfam EC counter:", pfam_EC_counter)
+    #print("TEST:", pfam_EC_counter[0])
+
+    #Write a csv file with results
+    with open("JGI_results.csv", "w") as csvfile:
+        fieldnames = ["TaxonID", "ec1", "pfam_ec1", "ec2", "pfam_ec2", "ec3", "pfam_ec3", "ec4", "pfam_ec4", "ec5", "pfam_ec5", "ec6", "pfam_ec6"]
+        writer = csv.writer(csvfile)
+        writer.writerow(fieldnames)
+        writer.writerow([taxonID, EC_counter[0][1], pfam_EC_counter[0][1], EC_counter[1][1], pfam_EC_counter[1][1], EC_counter[2][1], pfam_EC_counter[2][1], EC_counter[3][1], pfam_EC_counter[3][1], EC_counter[4][1], pfam_EC_counter[4][1], EC_counter[5][1], pfam_EC_counter[5][1]])
 
 def main():
     #List of all pfams
@@ -134,10 +171,14 @@ def main():
     EC_names = analyze_ECs(EC_names)
 
     #Dictionary of pfams - linking pfames to EC numbers
-    pfam_df = link_ECs_to_pfams(EC_names, pfam_df)
+    pfam_EC_dict = link_ECs_to_pfams(EC_names, pfam_df)
+    #print(pfam_df.head())
 
-    #Actual analyses - distribution of enzymes
-    EC_pfam_dist("2001200003", pfam_df)
+    #Actual question - get the distribution of enzymes
+    ECs, pfam_ECs = EC_pfam_dist("2001200003", pfam_EC_dict)
+
+    #Statsitics over distributions
+    analyses("2001200003", ECs, pfam_ECs)
 
 
 main()
