@@ -4,6 +4,7 @@ import re
 import csv
 from collections import Counter
 import os
+import scipy.stats as stats
 
 #Read list of pfams
 def read_pfam(filename):
@@ -15,8 +16,8 @@ def read_pfam(filename):
             ase_count += 1
 
     #Number of enzymes and percentage
-    print("Ase count =", ase_count)
-    print("Percent enzyme =", ase_count/len(df))
+    print("Ase count over all pfams =", ase_count)
+    print("Percent enzyme over all pfams =", ase_count/len(df))
 
     return df
 
@@ -117,7 +118,6 @@ def EC_pfam_dist(taxonID, pfam_EC_dict):
         json_f = json.load(f)
         for e in json_f["enzymes"]:
             ECs.append(int(e[:1]))
-        print("EC Distribution:", ECs)
 
     #pfam EC distribution
     with open("pfams/" + taxonID + "_pfams.csv", "r") as f:
@@ -135,8 +135,6 @@ def EC_pfam_dist(taxonID, pfam_EC_dict):
             if "ase" in row["Pfam Name"]:
                 ase_count += 1
 
-        print("Pfam EC distribution:", pfam_ECs)
-
     print("\nTotal number of pfams within " + taxonID + " =", pfam_len)
     print("\"Ase\" Count =", ase_count)
     return ECs, pfam_ECs
@@ -145,21 +143,21 @@ def analyses(taxonID, ECs, pfam_ECs):
     #Size of both
     print("EC Size:", len(ECs))
     print("pfam EC Size:", len(pfam_ECs))
-    print()
 
     #Goal - counter over both
     EC_counter = Counter(ECs)
     EC_counter = sorted(EC_counter.items())
-    print("EC counter:", EC_counter)
     pfam_EC_counter = Counter(pfam_ECs)
     pfam_EC_counter = sorted(pfam_EC_counter.items())
-    print("pfam EC counter:", pfam_EC_counter)
-    #print("TEST:", pfam_EC_counter[0])
+
+    #Statistics over distributions (comparison statististcs - KS & Welch's t-test)
+    ks_stat, ks_pval = stats.ks_2samp(ECs, pfam_ECs)
+    print("KS pval for " + taxonID + " =", ks_pval)
 
     #Write a csv file with results
     with open("JGI_results.csv", "a") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow([taxonID, EC_counter[0][1], pfam_EC_counter[0][1], EC_counter[1][1], pfam_EC_counter[1][1], EC_counter[2][1], pfam_EC_counter[2][1], EC_counter[3][1], pfam_EC_counter[3][1], EC_counter[4][1], pfam_EC_counter[4][1], EC_counter[5][1], pfam_EC_counter[5][1]])
+        writer.writerow([taxonID, EC_counter[0][1], pfam_EC_counter[0][1], EC_counter[1][1], pfam_EC_counter[1][1], EC_counter[2][1], pfam_EC_counter[2][1], EC_counter[3][1], pfam_EC_counter[3][1], EC_counter[4][1], pfam_EC_counter[4][1], EC_counter[5][1], pfam_EC_counter[5][1], ks_pval])
 
 def main():
     #List of all pfams
